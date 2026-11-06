@@ -1,31 +1,31 @@
 # Fine-tuning Flan-T5 with LoRA, tracked in MLflow and served with FastAPI
 
-This is my deep learning final project. I fine-tuned a small language model (Flan-T5-small) on two kinds of questions, math word problems and medical questions, logged everything in MLflow, compared the results to the untouched model, and wrote a small API that loads the logged models and answers questions with them.
+A deep learning project that fine-tunes a small language model (Flan-T5-small) on two kinds of questions, math word problems and medical questions. Experiments are logged in MLflow and compared against the untouched model. A small API loads the logged models and answers questions with them.
 
-The notebook I recorded my walkthrough from is here: https://colab.research.google.com/drive/1MihySuLkRr25dXt51vUr9A-xKnWpGZGt?usp=sharing
+Walkthrough notebook (Colab): https://colab.research.google.com/drive/1MihySuLkRr25dXt51vUr9A-xKnWpGZGt?usp=sharing
 
-## What's in the repo
+## Repository contents
 
-- `dataset_prep.ipynb` cleans the MathQA data and turns it into a Hugging Face dataset.
-- `deep_learning_final.ipynb` is the main notebook: LoRA fine-tuning, MLflow logging, and evaluation.
-- `app/` is the FastAPI server that serves models from MLflow.
-- `workshops/transformer/` is a course notebook where I built GPT-2 from scratch. It's not my own material (see below).
+- `dataset_prep.ipynb`: cleans the MathQA data and converts it to a Hugging Face dataset.
+- `deep_learning_final.ipynb`: main notebook covering LoRA fine-tuning, MLflow logging, and evaluation.
+- `app/`: FastAPI server that serves models from MLflow.
+- `workshops/transformer/`: course notebook implementing GPT-2 from scratch (third-party material, see below).
 
-## How it works
+## Approach
 
-**Data.** MathQA is multiple choice, but I wanted the model to write the answer itself. So in `dataset_prep.ipynb` I merged the train and test files (32,822 problems), used a regex to pull out the text of the correct option, and saved a 90/10 train/test split. For the medical side I used `FreedomIntelligence/medical-o1-reasoning-SFT` from the Hugging Face Hub and renamed its columns to match the math data, so one set of helper functions handles both.
+**Data.** MathQA is multiple choice, but the task here is to generate the answer itself. In `dataset_prep.ipynb`, the train and test files are merged (32,822 problems), a regex extracts the text of the correct option, and the result is saved as a 90/10 train/test split. The medical data is `FreedomIntelligence/medical-o1-reasoning-SFT` from the Hugging Face Hub, with columns renamed to match the math data so the same helper functions work for both.
 
-**Fine-tuning.** The base model is `google/flan-t5-small` (about 77M parameters). I used LoRA through Hugging Face PEFT with rank 8, alpha 16, and dropout 0.05, applied only to the attention `q` and `v` layers. That leaves 344K trainable parameters out of 77.3M, or 0.45%. Training ran for 5 epochs at a learning rate of 1e-5 using the Hugging Face `Trainer`. To keep Colab runs short I trained on every 5th example, which gave 5,252 training and 657 test examples for math.
+**Fine-tuning.** The base model is `google/flan-t5-small` (about 77M parameters). LoRA is applied through Hugging Face PEFT with rank 8, alpha 16, and dropout 0.05, on the attention `q` and `v` layers only. This leaves 344K trainable parameters out of 77.3M (0.45%). Training runs for 5 epochs at a learning rate of 1e-5 using the Hugging Face `Trainer`. To keep Colab runs short, training uses every 5th example, giving 5,252 training and 657 test examples for math.
 
-**Tracking.** Each run logs its hyperparameters, metrics, the model, and a CSV of the test predictions to MLflow. The MLflow database lives on Google Drive and is exposed through ngrok, so runs don't disappear when the Colab session resets.
+**Tracking.** Each run logs its hyperparameters, metrics, the model, and a CSV of test predictions to MLflow. The MLflow database is stored on Google Drive and exposed through ngrok, so runs persist across Colab session resets.
 
-**Serving.** The API reads straight from MLflow:
+**Serving.** The API reads directly from MLflow:
 
 - `GET /models` lists all runs with their params and metrics
-- `GET /models/{run_id}` shows details for one run
-- `POST /predict` sends your text to one or more models (by run id, or all of them if you leave it empty) and returns each model's answer
+- `GET /models/{run_id}` returns details for one run
+- `POST /predict` sends input text to one or more models (by run id, or all models if none are given) and returns each model's answer
 
-If one model fails to load, you get an error message for that model and the others still return results.
+If a model fails to load, its entry contains an error message and the other models still return results.
 
 ## Results
 
@@ -34,19 +34,19 @@ If one model fails to load, you get an error message for that model and the othe
 | Math | exact-match accuracy | 0.91% | 1.37% |
 | Medical | ROUGE-1 | 2.54% | about 3% |
 
-These numbers are low, and I don't want to dress that up. Flan-T5-small is tiny, the math problems need several reasoning steps, and exact string match is a harsh way to grade free text. Fine-tuning helped a little on math and barely changed the medical scores. I also tried 1, 5, and 10 epochs and saw no real difference between them.
+Absolute scores are low. Flan-T5-small is a very small model, the math problems require multi-step reasoning, and exact string match is a strict way to score free-form text. Fine-tuning gave a small improvement on math and almost no change on the medical task. Runs with 1, 5, and 10 epochs showed no meaningful difference.
 
-What I got out of the project was the setup around the model: a pipeline where every experiment is logged, compared against a baseline, and loadable through an API. If I kept going, I'd try a bigger base model, a higher LoRA rank, the full datasets instead of a subsample, and a better metric for math (comparing the final number instead of the whole string).
+The main outcome is the pipeline: experiments are logged, compared against a baseline, and loadable through an API. Possible next steps are a larger base model, a higher LoRA rank, training on the full datasets, and a better math metric (comparing the final number instead of the whole string).
 
 ## Transformer from scratch
 
-`workshops/transformer/transformer_hard.ipynb` comes from the open-source [ML4G course](https://github.com/EffiSciencesResearch/ML4G-2.0). In it I filled in a GPT-2 implementation in PyTorch (embeddings, causal attention, MLP, LayerNorm, unembedding) and checked it against the pretrained GPT-2 weights. The course content belongs to its authors. I included it because it's the architecture that Flan-T5 is built on, and it shows I worked through it by hand.
+`workshops/transformer/transformer_hard.ipynb` comes from the open-source [ML4G course](https://github.com/EffiSciencesResearch/ML4G-2.0). It implements GPT-2 in PyTorch (embeddings, causal attention, MLP, LayerNorm, unembedding) and checks the result against the pretrained GPT-2 weights. The course content belongs to its authors. It is included as background on the architecture family that Flan-T5 belongs to.
 
-## Running it
+## Running the project
 
-The notebooks are meant for Google Colab with a GPU, Google Drive for storage, and an ngrok token for the MLflow UI. Open the Colab link above and run it from the top.
+The notebooks are designed for Google Colab with a GPU, Google Drive for storage, and an ngrok token for the MLflow UI. Open the Colab link above and run from the top.
 
-To run the API on your own machine:
+To run the API locally:
 
 ```bash
 pip install fastapi uvicorn mlflow transformers pydantic
@@ -54,8 +54,8 @@ export MLFLOW_TRACKING_URI=http://localhost:5000   # your MLflow server
 uvicorn app.main:app --reload
 ```
 
-Then open `http://localhost:8000/docs` to try the endpoints. By default the API loads the artifact called `model-flan-t5-small-finetuned`, which is what the notebook logs. You can change it with the `MODEL_ARTIFACT_NAME` environment variable.
+Interactive docs are then available at `http://localhost:8000/docs`. By default the API loads the artifact named `model-flan-t5-small-finetuned`, which is what the notebook logs. Set `MODEL_ARTIFACT_NAME` to change it.
 
-## Tools used
+## Tools
 
 Python, PyTorch, Hugging Face (Transformers, Datasets, PEFT, Evaluate), MLflow, FastAPI, Pydantic, pandas, Google Colab, ngrok
