@@ -9,7 +9,6 @@ Walkthrough notebook (Colab): https://colab.research.google.com/drive/1MihySuLkR
 - `dataset_prep.ipynb`: cleans the MathQA data and converts it to a Hugging Face dataset.
 - `deep_learning_final.ipynb`: main notebook covering LoRA fine-tuning, MLflow logging, and evaluation.
 - `app/`: FastAPI server that serves models from MLflow.
-- `workshops/transformer/`: course notebook implementing GPT-2 from scratch (third-party material, see below).
 
 ## Approach
 
@@ -37,10 +36,6 @@ If a model fails to load, its entry contains an error message and the other mode
 Absolute scores are low. Flan-T5-small is a very small model, the math problems require multi-step reasoning, and exact string match is a strict way to score free-form text. Fine-tuning gave a small improvement on math and almost no change on the medical task. Runs with 1, 5, and 10 epochs showed no meaningful difference.
 
 The main outcome is the pipeline: experiments are logged, compared against a baseline, and loadable through an API. Possible next steps are a larger base model, a higher LoRA rank, training on the full datasets, and a better math metric (comparing the final number instead of the whole string).
-
-## Transformer from scratch
-
-`workshops/transformer/transformer_hard.ipynb` comes from the open-source [ML4G course](https://github.com/EffiSciencesResearch/ML4G-2.0). It implements GPT-2 in PyTorch (embeddings, causal attention, MLP, LayerNorm, unembedding) and checks the result against the pretrained GPT-2 weights. The course content belongs to its authors. It is included as background on the architecture family that Flan-T5 belongs to.
 
 ## Running the project
 
